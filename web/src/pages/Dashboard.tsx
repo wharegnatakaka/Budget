@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
+import ColourPicker from '../components/ColourPicker'
+import { useColours } from '../hooks/useColours'
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor,
   useSensor, useSensors, DragEndEvent,
@@ -116,18 +118,34 @@ const mkStyles = (t: Theme) => ({
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function BudgetSplitDonut({ outgoingTotal, spendingTotal, savingTotal, theme }: {
+function BudgetSplitDonut({ outgoingTotal, spendingTotal, savingTotal, theme, getColour, setColour }: {
   outgoingTotal: number; spendingTotal: number; savingTotal: number; theme: Theme
+  getColour: (key: string, fallback: string) => string
+  setColour: (key: string, hex: string) => void
 }) {
-  const COLORS = { outgoing: theme.danger, spending: theme.accent, saving: '#10b981' }
+  const [picker, setPicker] = useState<{ key: string; anchor: { x: number; y: number } } | null>(null)
+  const [hovered, setHovered] = useState(false)
+
   const data = [
-    { name: 'Outgoing', value: outgoingTotal, color: COLORS.outgoing },
-    { name: 'Spending', value: spendingTotal, color: COLORS.spending },
-    { name: 'Saving',   value: savingTotal,   color: COLORS.saving },
-  ]
+    { key: 'split-outgoing', name: 'Outgoing', value: outgoingTotal, fallback: theme.danger },
+    { key: 'split-spending', name: 'Spending', value: spendingTotal, fallback: theme.accent },
+    { key: 'split-saving',   name: 'Saving',   value: savingTotal,   fallback: '#10b981' },
+  ].map(d => ({ ...d, color: getColour(d.key, d.fallback) }))
+
   const total = outgoingTotal + spendingTotal + savingTotal
+
+  function openPicker(key: string, e: React.MouseEvent) {
+    const rect = (e.target as HTMLElement).getBoundingClientRect()
+    setPicker({ key, anchor: { x: rect.right + 6, y: rect.top } })
+    e.stopPropagation()
+  }
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 200, flexShrink: 0 }}>
+    <div
+      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 200, flexShrink: 0 }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       <ResponsiveContainer width={180} height={180}>
         <PieChart>
           <Pie data={data} cx="50%" cy="50%" innerRadius={52} outerRadius={72}
@@ -144,32 +162,68 @@ function BudgetSplitDonut({ outgoingTotal, spendingTotal, savingTotal, theme }: 
               <span style={{ width: 10, height: 10, borderRadius: '50%', background: d.color, flexShrink: 0 }} />
               <span style={{ color: theme.textMuted }}>{d.name}</span>
             </span>
-            <span style={{ color: theme.text, fontWeight: 500 }}>{total > 0 ? `${((d.value / total) * 100).toFixed(0)}%` : '—'}</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ color: theme.text, fontWeight: 500 }}>{total > 0 ? `${((d.value / total) * 100).toFixed(0)}%` : '—'}</span>
+              {hovered && (
+                <span onClick={e => openPicker(d.key, e)} style={{ cursor: 'pointer', color: theme.textMuted, fontSize: '0.7rem', lineHeight: 1 }}>✎</span>
+              )}
+            </span>
           </div>
         ))}
       </div>
+      {picker && (
+        <ColourPicker
+          colour={getColour(picker.key, '#ffffff')}
+          onChange={hex => setColour(picker.key, hex)}
+          onClose={() => setPicker(null)}
+          anchor={picker.anchor}
+        />
+      )}
     </div>
   )
 }
 
 
-function DonutChart({ category, theme, onClick }: { category: Category; theme: Theme; onClick?: () => void }) {
-  const budget  = Number(category.fortnightly_amount)
-  const spent   = Number(category.spent)
-  const over    = spent > budget
-  const pending = category.pending ?? 0
-  const data    = [
+function DonutChart({ category, theme, onClick, getColour, setColour }: {
+  category: Category; theme: Theme; onClick?: () => void
+  getColour: (key: string, fallback: string) => string
+  setColour: (key: string, hex: string) => void
+}) {
+  const budget    = Number(category.fortnightly_amount)
+  const spent     = Number(category.spent)
+  const over      = spent > budget
+  const pending   = category.pending ?? 0
+  const colourKey = `donut-${category.name}`
+  const colour    = getColour(colourKey, over ? theme.danger : theme.accent)
+  const [hovered, setHovered]   = useState(false)
+  const [picker, setPicker]     = useState<{ anchor: { x: number; y: number } } | null>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
+
+  const data = [
     { name: 'Spent',     value: Math.min(spent, budget) },
     { name: 'Remaining', value: Math.max(budget - spent, 0) },
   ]
+
+  function openPicker(e: React.MouseEvent) {
+    e.stopPropagation()
+    const rect = wrapRef.current!.getBoundingClientRect()
+    setPicker({ anchor: { x: rect.right + 6, y: rect.top } })
+  }
+
   return (
-    <div onClick={onClick} style={{ textAlign: 'center', width: 160, cursor: onClick ? 'pointer' : 'default' }}>
+    <div
+      ref={wrapRef}
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{ textAlign: 'center', width: 160, cursor: onClick ? 'pointer' : 'default', position: 'relative' }}
+    >
       <div style={{ position: 'relative', display: 'inline-block', marginBottom: 15 }}>
         <ResponsiveContainer width={160} height={160}>
           <PieChart>
             <Pie data={data} cx="50%" cy="50%" innerRadius={50} outerRadius={70}
               startAngle={90} endAngle={-270} dataKey="value" strokeWidth={0}>
-              <Cell fill={over ? theme.danger : theme.accent} />
+              <Cell fill={colour} />
               <Cell fill={theme.border} />
             </Pie>
             <Tooltip formatter={(v: number) => fmt(v)} />
@@ -177,6 +231,9 @@ function DonutChart({ category, theme, onClick }: { category: Category; theme: T
         </ResponsiveContainer>
         {pending > 0 && spent === 0 && (
           <div style={{ position: 'absolute', top: 8, right: 8, width: 10, height: 10, borderRadius: '50%', background: theme.textMuted, opacity: 0.6 }} title={`${pending} pending`} />
+        )}
+        {hovered && (
+          <div onClick={openPicker} style={{ position: 'absolute', top: 6, left: 6, cursor: 'pointer', color: theme.textMuted, fontSize: '0.75rem', lineHeight: 1 }}>✎</div>
         )}
       </div>
       <div style={{ fontWeight: 600, fontSize: '0.85rem', marginTop: -8, color: theme.text }}>{category.name}</div>
@@ -187,6 +244,14 @@ function DonutChart({ category, theme, onClick }: { category: Category; theme: T
       <div style={{ fontSize: '0.75rem', color: over ? theme.danger : theme.textMuted }}>
         {budget > 0 ? `${Math.min((spent / budget) * 100, 100).toFixed(0)}%` : '—'}
       </div>
+      {picker && (
+        <ColourPicker
+          colour={colour}
+          onChange={hex => setColour(colourKey, hex)}
+          onClose={() => setPicker(null)}
+          anchor={picker.anchor}
+        />
+      )}
     </div>
   )
 }
@@ -296,6 +361,7 @@ export default function Dashboard() {
   const s = mkStyles(theme)
   const navigate = useNavigate()
 
+  const { getColour, setColour } = useColours()
   const [data, setData]                   = useState<DashboardData | null>(null)
   const [periodId, setPeriodId]           = useState<number | null>(null)
   const [spendingCats, setSpendingCats]   = useState<Category[]>([])
@@ -463,13 +529,13 @@ export default function Dashboard() {
         <h2 style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: theme.textMuted }}>Spend vs Budget</h2>
         <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', paddingBottom: '1rem', alignItems: 'flex-start' }}>
           {budgetDonutCats.map(c => (
-            <DonutChart key={c.id} category={c} theme={theme}
+            <DonutChart key={c.id} category={c} theme={theme} getColour={getColour} setColour={setColour}
               onClick={() => navigate(`/transactions?${new URLSearchParams({ category_id: String(c.id), start: period.start_date, end: period.end_date, name: c.name })}`)}
             />
           ))}
           <div style={{ width: 1, background: theme.border, alignSelf: 'stretch', margin: '0 0.5rem' }} />
           {accountDonutCats.map(c => (
-            <DonutChart key={c.id} category={c} theme={theme}
+            <DonutChart key={c.id} category={c} theme={theme} getColour={getColour} setColour={setColour}
               onClick={() => navigate(`/transactions?${new URLSearchParams({ ps_account_id: c.ps_account_id!, start: period.start_date, end: period.end_date, name: c.name })}`)}
             />
           ))}
@@ -479,6 +545,8 @@ export default function Dashboard() {
             spendingTotal={spendingBudget + spendingCats.reduce((sum, c) => sum + Number(c.fortnightly_amount), 0)}
             savingTotal={savingCats.reduce((sum, c) => sum + Number(c.fortnightly_amount), 0)}
             theme={theme}
+            getColour={getColour}
+            setColour={setColour}
           />
         </div>
       </div>

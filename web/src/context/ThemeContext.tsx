@@ -57,6 +57,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const t = isDark ? dark : light
     document.body.style.backgroundColor = t.bg
     document.body.style.color = t.text
+    document.body.style.fontFamily = "'JetBrains Mono', monospace"
     localStorage.setItem('theme', isDark ? 'dark' : 'light')
   }, [isDark])
 

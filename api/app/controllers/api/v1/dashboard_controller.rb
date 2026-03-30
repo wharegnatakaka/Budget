@@ -77,7 +77,7 @@ module Api
           fixed_expenses:       FixedExpense.all,
           fixed_expenses_total: FixedExpense.sum(:fortnightly_amount),
           categories:           categories,
-          transaction_status: Transaction.not_transfers.group(:processing_status).count.then { |c|
+          transaction_status: Transaction.group(:processing_status).count.then { |c|
             { processed: c['processed'] || 0, imported: c['imported'] || 0, failed: c['failed'] || 0 }
           },
           account_spending: {

@@ -95,3 +95,7 @@ services:
 volumes:
   db_data:
   pg_data:
+
+networks:
+  traefik_network:
+    external: true

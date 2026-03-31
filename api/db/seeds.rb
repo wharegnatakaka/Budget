@@ -47,8 +47,8 @@ transaction_category_map = {
   "Eating Out"         => ["Restaurants", "Takeaways", "Food Delivery"],
   "House"              => ["Home Improvement", "Appliances & Furniture", "Repairs & Maintenance"],
   "Adventure"          => ["Travel", "Activities & Experiences"],
-  "Spending"           => ["Clothing", "Entertainment", "Cafes & bakery", "Bars & pubs", "Gifts", "Personal care", "One-off cost", "Misc"],
-  "Short Term Savings" => ["Short Term Transfer"],
+  "Spending"           => ["Clothing", "Entertainment", "Cafes & bakery", "Bars & pubs", "Gifts", "Personal care", "Misc"],
+  "Short Term Savings" => ["Short Term Transfer", "One-off cost"],
   "Long Term Savings"  => ["KiwiSaver", "Investment"],
 }
 

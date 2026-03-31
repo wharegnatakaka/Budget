@@ -47,7 +47,7 @@ class ClaudeCategorizationService
     - Activities & Experiences: recreational activities, experiences, days out, and adventure spending
     - Gifts: gifts and presents for others
     - Personal care: haircuts, beauty, grooming, health products
-    - One-off cost: significant one-time purchases that don't fit elsewhere
+    - One-off cost: significant one-time purchases funded from short-term savings (not day-to-day spending)
     - Misc: use this when confidence is below 0.7, or when the transaction doesn't clearly match any other category
     - Short Term Transfer: transfers to short-term savings goals
     - KiwiSaver: KiwiSaver contributions

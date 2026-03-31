@@ -40,10 +40,11 @@ export default function Transactions() {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
 
-  const categoryId   = params.get('category_id')
-  const psAccountId  = params.get('ps_account_id')
-  const start        = params.get('start')
-  const end          = params.get('end')
+  const categoryId          = params.get('category_id')
+  const psAccountId         = params.get('ps_account_id')
+  const ownBudgetCategoryId = params.get('own_budget_category_id')
+  const start               = params.get('start')
+  const end                 = params.get('end')
   const categoryName = params.get('name') ?? 'Transactions'
   const isFiltered   = !!(categoryId || psAccountId || start || end)
 
@@ -60,10 +61,11 @@ export default function Transactions() {
   async function load(p = page) {
     setLoading(true)
     const q = new URLSearchParams({ page: String(p), per_page: String(PER_PAGE) })
-    if (categoryId)  q.set('budget_category_id', categoryId)
-    if (psAccountId) q.set('ps_account_id', psAccountId)
-    if (start)       q.set('start_date', start)
-    if (end)         q.set('end_date', end)
+    if (categoryId)          q.set('budget_category_id', categoryId)
+    if (psAccountId)         q.set('ps_account_id', psAccountId)
+    if (ownBudgetCategoryId) q.set('own_budget_category_id', ownBudgetCategoryId)
+    if (start)               q.set('start_date', start)
+    if (end)                 q.set('end_date', end)
     const res = await api.get<{ data: Transaction[]; meta: Meta }>(`/transactions?${q}`)
     setTransactions(res.data)
     setMeta(res.meta)
@@ -74,7 +76,7 @@ export default function Transactions() {
     api.get<TransactionCategory[]>('/transaction_categories').then(setTxCategories)
   }, [])
 
-  useEffect(() => { setPage(1); load(1) }, [categoryId, psAccountId, start, end])
+  useEffect(() => { setPage(1); load(1) }, [categoryId, psAccountId, ownBudgetCategoryId, start, end])
   useEffect(() => { load(page) }, [page])
 
   async function updateCategory(t: Transaction, txCategoryId: number) {

@@ -12,6 +12,10 @@ module Api
         if params[:ps_account_id]
           account = PocketsmithAccount.find_by(ps_id: params[:ps_account_id])
           scope = scope.where(pocketsmith_account_id: account&.id)
+          if params[:own_budget_category_id]
+            own_cat_ids = TransactionCategory.where(budget_category_id: params[:own_budget_category_id]).pluck(:id)
+            scope = scope.where(transaction_category_id: own_cat_ids + [nil])
+          end
         end
         scope = scope.where(date: params[:start_date]..) if params[:start_date]
         scope = scope.where(date: ..params[:end_date])   if params[:end_date]

@@ -536,7 +536,7 @@ export default function Dashboard() {
           <div style={{ width: 1, background: theme.border, alignSelf: 'stretch', margin: '0 0.5rem' }} />
           {accountDonutCats.map(c => (
             <DonutChart key={c.id} category={c} theme={theme} getColour={getColour} setColour={setColour}
-              onClick={() => navigate(`/transactions?${new URLSearchParams({ ps_account_id: c.ps_account_id!, start: period.start_date, end: period.end_date, name: c.name })}`)}
+              onClick={() => navigate(`/transactions?${new URLSearchParams({ ps_account_id: c.ps_account_id!, start: period.start_date, end: period.end_date, name: c.name, ...(spendingRow ? { own_budget_category_id: String(spendingRow.id) } : {}) })}`)}
             />
           ))}
           <div style={{ width: 1, background: theme.border, alignSelf: 'stretch', margin: '0 0.5rem' }} />

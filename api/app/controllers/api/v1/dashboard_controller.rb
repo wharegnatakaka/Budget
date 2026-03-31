@@ -38,11 +38,15 @@ module Api
         tracked_accounts  = PocketsmithAccount.where(ps_id: tracked_ps_ids).index_by(&:ps_id)
         spending_accounts = tracked_accounts.slice("2242603", "4873170")
 
+        spending_budget_cat     = BudgetCategory.find_by(name: "Spending")
+        spending_tx_cat_ids     = spending_budget_cat ? TransactionCategory.where(budget_category: spending_budget_cat).pluck(:id) : []
+
         account_spending_raw = Transaction
           .not_transfers
           .debits
           .where(date: period.start_date..period.end_date)
           .where(pocketsmith_account_id: spending_accounts.values.map(&:id))
+          .where(transaction_category_id: spending_tx_cat_ids + [nil])
           .group(:pocketsmith_account_id)
           .sum(:amount)
         general_id  = tracked_accounts["2242603"]&.id

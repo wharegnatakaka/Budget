@@ -478,7 +478,7 @@ export default function Dashboard() {
 
   // ── Shared table structure ────────────────────────────────────────────────
 
-  function CatTable({ children }: { children: React.ReactNode }) {
+  function CatTable({ children, hideHeader }: { children: React.ReactNode; hideHeader?: boolean }) {
     return (
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
         <colgroup>
@@ -489,16 +489,18 @@ export default function Dashboard() {
           <col style={{ width: 90 }} />
           <col style={{ width: 60 }} />
         </colgroup>
-        <thead>
-          <tr style={{ borderBottom: `2px solid ${theme.border}` }}>
-            <th style={s.td()} />
-            <th style={s.td()}>Category</th>
-            <th style={s.td(true)}>Sam</th>
-            <th style={s.td(true)}>Ish</th>
-            <th style={s.td(true)}>Budget</th>
-            <th style={s.td()} />
-          </tr>
-        </thead>
+        {!hideHeader && (
+          <thead>
+            <tr style={{ borderBottom: `2px solid ${theme.border}` }}>
+              <th style={s.td()} />
+              <th style={s.td()} />
+              <th style={s.td(true)}>Sam</th>
+              <th style={s.td(true)}>Ish</th>
+              <th style={s.td(true)}>Total</th>
+              <th style={s.td()} />
+            </tr>
+          </thead>
+        )}
         {children}
       </table>
     )
@@ -555,16 +557,6 @@ export default function Dashboard() {
       <div style={{ marginBottom: '2rem' }}>
         <h2 style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: theme.textMuted }}>Income</h2>
         <CatTable>
-          <thead>
-            <tr style={{ borderBottom: `2px solid ${theme.border}` }}>
-              <th style={s.tdBase} />
-              <th style={s.td()} />
-              <th style={s.td(true)}>Sam</th>
-              <th style={s.td(true)}>Ish</th>
-              <th style={s.td(true)}>Total</th>
-              <th style={s.tdBase} />
-            </tr>
-          </thead>
           <tbody>
             <tr>
               <td style={s.tdBase} />
@@ -586,19 +578,9 @@ export default function Dashboard() {
 
         {/* Spending section (includes Outgoing as first row) */}
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={makeDragHandler(setSpendingCats, 'spending')}>
-          <CatTable>
-            <thead>
-              <tr>
-                <th style={s.tdBase} />
-                <th style={s.td()} />
-                <th style={{ ...s.td(true), color: theme.textMuted, fontWeight: 500, fontSize: '0.8rem' }}>Sam</th>
-                <th style={{ ...s.td(true), color: theme.textMuted, fontWeight: 500, fontSize: '0.8rem' }}>Ish</th>
-                <th style={{ ...s.td(true), color: theme.textMuted, fontWeight: 500, fontSize: '0.8rem' }}>Total</th>
-                <th style={s.tdBase} />
-              </tr>
-              <tr><td colSpan={7} style={s.sectionHeader}>Spending</td></tr>
-            </thead>
+          <CatTable hideHeader>
             <tbody>
+              <tr><td colSpan={7} style={s.sectionHeader}>Spending</td></tr>
               {outgoing && (
                 <tr style={{ background: theme.surface }}>
                   <td style={s.tdBase} />
@@ -635,11 +617,9 @@ export default function Dashboard() {
 
         {/* Saving section */}
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={makeDragHandler(setSavingCats, 'saving')}>
-          <CatTable>
-            <thead>
-              <tr><td colSpan={6} style={s.sectionHeader}>Saving</td></tr>
-            </thead>
+          <CatTable hideHeader>
             <tbody>
+              <tr><td colSpan={6} style={s.sectionHeader}>Saving</td></tr>
               <SortableContext items={savingCats.map(c => c.id)} strategy={verticalListSortingStrategy}>
                 {savingCats.map(cat =>
                   editingCategory === cat.id ? (

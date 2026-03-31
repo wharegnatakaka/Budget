@@ -5,7 +5,7 @@ import { useTheme } from '../context/ThemeContext'
 
 interface Status {
   processed: number
-  imported: number
+  transfers: number
   pending: number
   failed: number
 }
@@ -43,11 +43,12 @@ export default function TransactionStatusWidget() {
 
   if (!status) return null
 
-  const total = status.processed + status.imported + status.failed
+  const total = status.processed + status.transfers + status.pending + status.failed
   const slices = [
-    { name: 'Processed', value: status.processed, color: '#10b981' },
-    { name: 'Pending',   value: status.pending,   color: theme.textMuted },
-    { name: 'Failed',    value: status.failed,     color: theme.danger },
+    { name: 'Processed', value: status.processed,  color: '#10b981' },
+    { name: 'Transfers', value: status.transfers,   color: theme.accent },
+    { name: 'Pending',   value: status.pending,     color: theme.textMuted },
+    { name: 'Failed',    value: status.failed,       color: theme.danger },
   ].filter(d => d.value > 0)
 
   return (
@@ -71,9 +72,10 @@ export default function TransactionStatusWidget() {
       </ResponsiveContainer>
       <div style={{ marginTop: 4 }}>
         {[
-          { label: 'Processed', value: status.processed, color: '#10b981' },
-          { label: 'Pending',   value: status.pending,   color: theme.textMuted },
-          { label: 'Failed',    value: status.failed,    color: theme.danger },
+          { label: 'Processed', value: status.processed,  color: '#10b981' },
+          { label: 'Transfers', value: status.transfers,   color: theme.accent },
+          { label: 'Pending',   value: status.pending,     color: theme.textMuted },
+          { label: 'Failed',    value: status.failed,      color: theme.danger },
         ].map(d => (
           <div key={d.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: 3 }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>

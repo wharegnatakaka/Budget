@@ -3,3 +3,4 @@
 !.env.example
 api/config/master.key
 openclaw/
+compose.override.yml

@@ -82,7 +82,8 @@ module Api
               .where("haiku_is_transfer = false OR haiku_is_transfer IS NULL")
               .where("is_transfer = false OR is_transfer IS NULL")
               .count
-            { processed: c['processed'] || 0, imported: c['imported'] || 0, pending: pending, failed: c['failed'] || 0 }
+            transfers = (c['imported'] || 0) - pending
+            { processed: c['processed'] || 0, transfers: transfers, pending: pending, failed: c['failed'] || 0 }
           },
           account_spending: {
             general:  (account_spending_raw[general_id]&.abs  || 0),

@@ -1,129 +1,140 @@
 import { useEffect, useState } from 'react'
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
 import { api } from '../api/client'
+import { useTheme } from '../context/ThemeContext'
 
 interface Mortgage {
   id: number
   label: string | null
-  original_principal: number
-  property_value: number | null
-  ps_account_id: string | null
+  original_principal: string
+  current_balance: string | null
+  balance_date: string | null
 }
 
-interface MortgageSnapshot {
-  date: string
-  balance: number
-}
+const fmt = (v: string | number | null | undefined) =>
+  v == null ? '—' : `$${Number(v).toLocaleString('en-NZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
-interface LvrMilestone {
-  id: number
-  lvr_target: number
-  label: string
-  achieved_at: string | null
-}
+const fmtPct = (v: number | null) =>
+  v == null ? '—' : `${v.toFixed(2)}%`
 
 export default function MortgagePage() {
-  const [mortgages, setMortgages] = useState<Mortgage[]>([])
-  const [snapshots, setSnapshots] = useState<Record<number, MortgageSnapshot[]>>({})
-  const [milestones, setMilestones] = useState<Record<number, LvrMilestone[]>>({})
-  const [loading, setLoading] = useState(true)
+  const { theme } = useTheme()
+  const [mortgages, setMortgages]         = useState<Mortgage[]>([])
+  const [propertyValue, setPropertyValue] = useState<string>('')
+  const [editingValue, setEditingValue]   = useState<string>('')
+  const [editing, setEditing]             = useState(false)
+  const [loading, setLoading]             = useState(true)
 
   useEffect(() => {
-    api.get<Mortgage[]>('/mortgages').then(async ms => {
+    Promise.all([
+      api.get<Mortgage[]>('/mortgages'),
+      api.get<{ key: string; value: string | null }>('/settings/property_value'),
+    ]).then(([ms, setting]) => {
       setMortgages(ms)
-      const snapMap: Record<number, MortgageSnapshot[]> = {}
-      const msMap: Record<number, LvrMilestone[]> = {}
-      await Promise.all(
-        ms.flatMap(m => [
-          api.get<MortgageSnapshot[]>(`/mortgages/${m.id}/mortgage_snapshots`).then(d => { snapMap[m.id] = d }),
-          api.get<LvrMilestone[]>(`/mortgages/${m.id}/lvr_milestones`).then(d => { msMap[m.id] = d }),
-        ])
-      )
-      setSnapshots(snapMap)
-      setMilestones(msMap)
+      setPropertyValue(setting.value ?? '')
     }).finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <p>Loading…</p>
+  async function savePropertyValue() {
+    await api.patch('/settings/property_value', { setting: { value: editingValue } })
+    setPropertyValue(editingValue)
+    setEditing(false)
+  }
+
+  const totalBalance = mortgages.reduce((sum, m) => sum + (m.current_balance ? Number(m.current_balance) : 0), 0)
+  const propVal      = propertyValue ? Number(propertyValue) : null
+  const totalDebt    = Math.abs(totalBalance)
+  const equity       = propVal != null ? propVal - totalDebt : null
+  const equityPct    = propVal != null && propVal > 0 ? (equity! / propVal) * 100 : null
+
+  const th: React.CSSProperties = {
+    padding: '0.4rem 0.75rem',
+    borderBottom: `2px solid ${theme.border}`,
+    textAlign: 'left',
+    fontSize: '0.875rem',
+    color: theme.textMuted,
+    fontWeight: 500,
+  }
+  const thR  = { ...th, textAlign: 'right' as const }
+  const td: React.CSSProperties = {
+    padding: '0.4rem 0.75rem',
+    borderBottom: `1px solid ${theme.border}`,
+    fontSize: '0.875rem',
+    color: theme.text,
+  }
+  const tdR    = { ...td, textAlign: 'right' as const }
+  const tdMuted = { ...td, color: theme.textMuted }
+
+  if (loading) return <p style={{ color: theme.textMuted }}>Loading…</p>
 
   return (
-    <div>
+    <div style={{ maxWidth: 600, color: theme.text }}>
       <h1 style={{ margin: '0 0 1.5rem' }}>Mortgage</h1>
-      {mortgages.map(m => {
-        const snaps = snapshots[m.id] ?? []
-        const ms    = milestones[m.id] ?? []
-        const currentBalance = snaps[0]?.balance
-        const lvr = m.property_value && currentBalance
-          ? ((currentBalance / m.property_value) * 100).toFixed(1)
-          : null
 
-        // LVR over time for the chart
-        const lvrData = m.property_value
-          ? snaps.map(s => ({ date: s.date, lvr: Number(((s.balance / m.property_value!) * 100).toFixed(2)) }))
-          : []
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>
+            <th style={th}>Account</th>
+            <th style={thR}>Balance</th>
+            <th style={thR}>% of value</th>
+            <th style={{ ...th, fontSize: '0.75rem' }}>As of</th>
+          </tr>
+        </thead>
+        <tbody>
+          {mortgages.map(m => {
+            const bal    = m.current_balance ? Number(m.current_balance) : null
+            const pct    = propVal && bal != null ? (Math.abs(bal) / propVal) * 100 : null
+            return (
+              <tr key={m.id}>
+                <td style={td}>{m.label ?? 'Mortgage'}</td>
+                <td style={tdR}>{fmt(bal)}</td>
+                <td style={{ ...tdR, color: theme.textMuted }}>{fmtPct(pct)}</td>
+                <td style={{ ...tdMuted, fontSize: '0.75rem' }}>{m.balance_date ?? '—'}</td>
+              </tr>
+            )
+          })}
 
-        return (
-          <div key={m.id}>
-            <h2 style={{ fontSize: '1rem', margin: '0 0 0.5rem' }}>{m.label ?? 'Mortgage'}</h2>
+          <tr>
+            <td style={{ ...td, borderTop: `1px solid ${theme.borderStrong}` }}>House valuation</td>
+            <td style={{ ...tdR, borderTop: `1px solid ${theme.borderStrong}` }} colSpan={2}>
+              {editing ? (
+                <span style={{ display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
+                  <input
+                    type="number"
+                    value={editingValue}
+                    onChange={e => setEditingValue(e.target.value)}
+                    autoFocus
+                    style={{
+                      width: 120, textAlign: 'right',
+                      background: theme.inputBg, color: theme.text,
+                      border: `1px solid ${theme.inputBorder}`, borderRadius: 4,
+                      fontSize: '0.875rem', padding: '0.1rem 0.3rem',
+                    }}
+                  />
+                  <button onClick={savePropertyValue} style={{ fontSize: '0.75rem', padding: '0.1rem 0.4rem', cursor: 'pointer', background: theme.accent, color: '#fff', border: 'none', borderRadius: 4 }}>Save</button>
+                  <button onClick={() => setEditing(false)} style={{ fontSize: '0.75rem', padding: '0.1rem 0.4rem', cursor: 'pointer', background: 'transparent', color: theme.textMuted, border: `1px solid ${theme.border}`, borderRadius: 4 }}>✕</button>
+                </span>
+              ) : (
+                <span style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8 }}>
+                  {fmt(propertyValue || null)}
+                  <button onClick={() => { setEditingValue(propertyValue); setEditing(true) }} style={{ fontSize: '0.7rem', padding: '0.1rem 0.35rem', cursor: 'pointer', background: 'transparent', color: theme.textMuted, border: `1px solid ${theme.border}`, borderRadius: 4 }}>Edit</button>
+                </span>
+              )}
+            </td>
+            <td style={{ ...tdMuted, borderTop: `1px solid ${theme.borderStrong}` }} />
+          </tr>
 
-            <div style={{ display: 'flex', gap: '2rem', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
-              <div><strong>Balance</strong><br />{currentBalance != null ? `$${Number(currentBalance).toLocaleString()}` : '—'}</div>
-              <div><strong>LVR</strong><br />{lvr != null ? `${lvr}%` : m.property_value == null ? 'Property value not set' : '—'}</div>
-              <div><strong>Original principal</strong><br />${Number(m.original_principal).toLocaleString()}</div>
-            </div>
-
-            {lvrData.length > 0 && (
-              <>
-                <h3 style={{ fontSize: '0.9rem', margin: '0 0 0.5rem', color: '#555' }}>LVR over time</h3>
-                <ResponsiveContainer width="100%" height={220}>
-                  <LineChart data={lvrData} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
-                    <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                    <YAxis tickFormatter={v => `${v}%`} domain={['auto', 'auto']} />
-                    <Tooltip formatter={(v: number) => `${v}%`} />
-                    {ms.map(ms => (
-                      <ReferenceLine
-                        key={ms.id}
-                        y={ms.lvr_target * 100}
-                        stroke={ms.achieved_at ? '#22c55e' : '#94a3b8'}
-                        strokeDasharray="4 2"
-                        label={{ value: ms.label, fontSize: 11 }}
-                      />
-                    ))}
-                    <Line type="monotone" dataKey="lvr" stroke="#6366f1" dot={false} strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </>
-            )}
-
-            {ms.length > 0 && (
-              <div style={{ marginTop: '1.5rem' }}>
-                <h3 style={{ fontSize: '0.9rem', margin: '0 0 0.5rem', color: '#555' }}>LVR Milestones</h3>
-                <table style={{ fontSize: '0.875rem', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid #e5e7eb', textAlign: 'left' }}>
-                      <th style={{ padding: '0.4rem 0.75rem' }}>Label</th>
-                      <th style={{ padding: '0.4rem 0.75rem' }}>Target</th>
-                      <th style={{ padding: '0.4rem 0.75rem' }}>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ms.map(m => (
-                      <tr key={m.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                        <td style={{ padding: '0.4rem 0.75rem' }}>{m.label}</td>
-                        <td style={{ padding: '0.4rem 0.75rem' }}>{(m.lvr_target * 100).toFixed(1)}%</td>
-                        <td style={{ padding: '0.4rem 0.75rem', color: m.achieved_at ? '#16a34a' : '#6b7280' }}>
-                          {m.achieved_at ? `Achieved ${m.achieved_at.slice(0, 10)}` : 'Pending'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )
-      })}
-      {mortgages.length === 0 && <p style={{ color: '#6b7280' }}>No mortgage configured yet.</p>}
+          <tr style={{ background: theme.surface }}>
+            <td style={{ ...td, fontWeight: 600, borderTop: `2px solid ${theme.border}` }}>Equity</td>
+            <td style={{ ...tdR, fontWeight: 600, borderTop: `2px solid ${theme.border}`, color: equity != null && equity > 0 ? '#10b981' : theme.danger }}>
+              {fmt(equity)}
+            </td>
+            <td style={{ ...tdR, fontWeight: 600, borderTop: `2px solid ${theme.border}`, color: equityPct != null && equityPct > 0 ? '#10b981' : theme.danger }}>
+              {fmtPct(equityPct)}
+            </td>
+            <td style={{ ...td, borderTop: `2px solid ${theme.border}` }} />
+          </tr>
+        </tbody>
+      </table>
     </div>
   )
 }

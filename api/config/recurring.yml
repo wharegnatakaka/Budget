@@ -3,7 +3,7 @@ production:
     class: SyncJob
     queue: default
     args:
-      days_back: 2
+      - days_back: 2
     schedule: every 2 hours
   categorise_transactions:
     class: CategoriseJob

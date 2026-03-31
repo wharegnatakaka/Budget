@@ -30,8 +30,13 @@ class PocketsmithSyncService
     end
 
     log "sync complete: imported=#{imported} skipped=#{skipped}"
+    notify("Pocketsmith Sync Complete", "Synced #{imported} transactions (#{skipped} skipped)", priority: 2)
     categorisation = ClaudeCategorizationService.new
     categorisation.process_batch! while Transaction.unprocessed.not_transfers.exists?
+  rescue => e
+    log "sync failed: #{e.message}"
+    notify("Pocketsmith Sync Failed", e.message, priority: 3)
+    raise
   end
 
   def snapshot_savings_accounts
@@ -113,5 +118,17 @@ class PocketsmithSyncService
 
   def log(msg)
     Rails.logger.info("[#{Time.now}] PocketsmithSync: #{msg}")
+  end
+
+  def notify(title, body, priority: 3)
+    ntfy_url = ENV["NTFY_URL"]
+    return unless ntfy_url
+
+    HTTP.headers(
+      "X-Title"    => title,
+      "X-Priority" => priority.to_s
+    ).post(ntfy_url, body: body)
+  rescue => e
+    log "ntfy notification failed: #{e.message}"
   end
 end
